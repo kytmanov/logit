@@ -23,6 +23,25 @@ Before first setup, have these ready:
 
 ## Install
 
+### Windows
+
+Install from the latest GitHub Release with PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/kytmanov/logit/releases/latest/download/logit-installer.ps1 | iex"
+```
+
+What this installs:
+
+- `logit.exe`
+- `logit-mcp.exe`
+- `cli-tempo.exe`
+
+Notes:
+
+- open a new terminal window after install so the updated `PATH` is picked up
+- if you prefer not to use the installer script, download the Windows `.zip` from GitHub Releases and place the binaries somewhere on your `PATH`
+
 ### Homebrew
 
 Recommended:
@@ -62,6 +81,12 @@ Install all three with Cargo:
 ```bash
 cargo install --path .
 ```
+
+On Windows, Cargo installs:
+
+- `logit.exe`
+- `logit-mcp.exe`
+- `cli-tempo.exe`
 
 ## End-to-end CLI setup
 
