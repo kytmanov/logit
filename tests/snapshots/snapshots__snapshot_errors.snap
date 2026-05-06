@@ -1,0 +1,6 @@
+---
+source: tests/snapshots.rs
+assertion_line: 455
+expression: "render_error(&AppError::validation(\"missing duration after issue key\"),\n&style)"
+---
+[X] Invalid input: missing duration after issue key

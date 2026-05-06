@@ -1,0 +1,10 @@
+---
+source: tests/snapshots.rs
+assertion_line: 67
+expression: text
+---
+[OK] Logged TK-1234 - 1h
+  Date     Wed Apr 1
+  Time     09:00 -> 10:00
+  Message  fix flaky test
+  Worklog  https://example.atlassian.net/tempo/worklog/42

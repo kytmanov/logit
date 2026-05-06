@@ -1,0 +1,9 @@
+---
+source: tests/snapshots.rs
+assertion_line: 88
+expression: text
+---
+[~] Dry-run TK-1234 - 1h 30m - profile work, tz Europe/Berlin
+  Date     Wed Apr 1
+  Time     09:00 -> 10:30
+  Message  plan rework

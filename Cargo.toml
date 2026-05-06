@@ -1,0 +1,34 @@
+[package]
+name = "logit"
+version = "0.1.0"
+edition = "2024"
+description = "Terminal-first Jira Tempo worklog logger with MCP support"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/kytmanov/logit"
+homepage = "https://github.com/kytmanov/logit"
+keywords = ["jira", "tempo", "cli", "mcp", "worklog"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+chrono = { version = "0.4", features = ["clock", "serde"] }
+chrono-tz = { version = "0.10", features = ["serde"] }
+comfy-table = "7.1"
+directories = "5.0"
+iana-time-zone = "0.1"
+inquire = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+strsim = "0.11"
+thiserror = "2.0"
+toml_edit = { version = "0.22", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+insta = { version = "1.43", features = ["json"] }
+mockito = "1.7"
+predicates = "3.1"
+tempfile = "3.13"

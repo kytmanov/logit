@@ -1,0 +1,6 @@
+---
+source: tests/snapshots.rs
+assertion_line: 463
+expression: "render_error(&AppError::not_found(\"unknown issue key 'TK-999'\"), &style)"
+---
+[X] Not found: unknown issue key 'TK-999'

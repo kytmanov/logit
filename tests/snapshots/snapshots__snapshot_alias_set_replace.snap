@@ -1,0 +1,6 @@
+---
+source: tests/snapshots.rs
+assertion_line: 407
+expression: text
+---
+[OK] Replaced standup : TK-old -> TC-3

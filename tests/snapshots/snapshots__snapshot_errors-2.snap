@@ -1,0 +1,6 @@
+---
+source: tests/snapshots.rs
+assertion_line: 459
+expression: "render_error(&AppError::auth(\"Tempo token rejected\"), &style)"
+---
+[X] Auth error: Tempo token rejected

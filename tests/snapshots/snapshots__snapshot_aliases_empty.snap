@@ -1,0 +1,8 @@
+---
+source: tests/snapshots.rs
+assertion_line: 395
+expression: text
+---
+Aliases - profile work
+  No aliases yet.
+  Add one with logit alias <name> <ISSUE-KEY>

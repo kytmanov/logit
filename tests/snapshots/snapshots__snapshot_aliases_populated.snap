@@ -1,0 +1,9 @@
+---
+source: tests/snapshots.rs
+assertion_line: 388
+expression: text
+---
+Aliases - profile work
+   Name     Issue  Duration  Default message 
+   review   TK-9   1h        -               
+   standup  TC-3   30m       daily standup

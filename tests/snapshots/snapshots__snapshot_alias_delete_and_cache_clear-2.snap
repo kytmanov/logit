@@ -1,0 +1,6 @@
+---
+source: tests/snapshots.rs
+assertion_line: 414
+expression: "render_cache_clear(\"work\", &style)"
+---
+[OK] Cleared calendar cache for profile work

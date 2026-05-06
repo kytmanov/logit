@@ -1,0 +1,13 @@
+---
+source: tests/snapshots.rs
+assertion_line: 150
+expression: text
+---
+logit doctor · environment summary
+  Schema  v1 - [X] mismatch (supported v2)
+  Config  /home/user/.config/logit/config.toml
+      local-only
+  Data    /home/user/.local/share/logit
+      local-only
+  Cache   /home/user/.cache/logit
+      local-only

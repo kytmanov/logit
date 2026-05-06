@@ -1,0 +1,12 @@
+---
+source: tests/snapshots.rs
+assertion_line: 292
+expression: text
+---
+Today - Wed Apr 1 profile work
+   Time            Issue  Duration  Message 
+   09:00 -> 10:00  TK-1         1h  standup 
+   10:00 -> 12:00  TK-9         2h  -       
+  Total  3h / 8h  ####...... 37% [!] 5h remaining
+
+  Source: Tempo work schedule

@@ -1,0 +1,14 @@
+---
+source: tests/snapshots.rs
+assertion_line: 135
+expression: text
+---
+logit doctor · environment summary
+  Schema   v1 - [OK] ok
+  Config   /home/user/.dotfiles/logit/config.toml
+      dotfile-sync detected [!]
+  Data     /home/user/.local/share/logit
+      local-only
+  Cache    /home/user/.cache/logit
+      local-only
+  Profile  work - Europe/Berlin

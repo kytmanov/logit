@@ -1,0 +1,22 @@
+---
+source: tests/snapshots.rs
+assertion_line: 364
+expression: text
+---
+Year - 2026 - profile work
+   Month      Filled  Expected  Progress        
+   January      176h      176h  ########## 100% 
+   February     160h      160h  ########## 100% 
+   March        176h      176h  ########## 100% 
+   April        176h      176h  ########## 100% 
+   May             -      168h  ..........   0% 
+   June            -      176h  ..........   0% 
+   July            -      184h  ..........   0% 
+   August          -      168h  ..........   0% 
+   September       -      176h  ..........   0% 
+   October         -      176h  ..........   0% 
+   November        -      168h  ..........   0% 
+   December        -      184h  ..........   0% 
+  Total  688h / 2088h  ###....... 32% [!] 1400h remaining
+
+  Source: configured workday

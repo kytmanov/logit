@@ -1,0 +1,14 @@
+---
+source: tests/snapshots.rs
+assertion_line: 120
+expression: text
+---
+[OK] Setup complete - profile "work"
+  Jira      https://example.atlassian.net
+  Email     user@example.com
+  Timezone  Europe/Berlin
+  Hours     09:00 -> 17:00
+  Days      Mon, Tue, Wed, Thu, Fri
+  Format    24h
+  [!] Secrets stored at /home/user/.local/share/logit/secrets.toml
+    Keep this file out of dotfile sync.

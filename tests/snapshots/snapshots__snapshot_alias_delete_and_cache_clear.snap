@@ -1,0 +1,6 @@
+---
+source: tests/snapshots.rs
+assertion_line: 413
+expression: "render_alias_delete(\"standup\", &style)"
+---
+[OK] Deleted alias standup

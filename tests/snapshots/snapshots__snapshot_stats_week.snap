@@ -1,0 +1,15 @@
+---
+source: tests/snapshots.rs
+assertion_line: 248
+expression: text
+---
+This week - Mon Mar 30 – Sun Apr 5 - profile work
+   Date        Filled                 Expected  Progress       Issues           
+   Mon Mar 30                     8h        8h  ######## 100%  TK-1 6h, TK-2 2h 
+   Tue Mar 31                 4h 30m        8h  #####...  56%  TK-3 4h 30m      
+   Wed Apr 1                       -        8h  ........   0%  -                
+   Thu Apr 2   Holiday: Founders Day                                            
+   Fri Apr 3                      8h        8h  ######## 100%  TK-1 8h          
+  Total  20h 30m / 32h  ######.... 64% [!] 11h 30m remaining
+
+  Source: Tempo work schedule, configured workday
