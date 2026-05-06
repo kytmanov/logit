@@ -1,19 +1,21 @@
 # logit
 
-Terminal-first Jira Tempo worklog logger written in Rust.
+Terminal-first Jira Tempo worklog logger with MCP support.
 
-`logit` lets you:
+`logit` ships two interfaces that share the same local config, profiles, secrets, aliases, and cache:
 
-- log time with a duration like `logit TK-1234 1h 30m`
-- log time with a saved alias like `logit standup`
-- see worklog summaries with `logit stat`
-- inspect individual worklogs with `logit stat --details`
-- keep config, secrets, and cache in separate directories
+- `logit` for direct CLI worklogging and reporting
+- `logit-mcp` for Claude, Codex, OpenCode, and other MCP-compatible editors and agents
 
-It also ships:
+Use it to:
 
-- the compatibility binary name `cli-tempo`
-- `logit-mcp` for MCP-compatible editors and agents
+- log time from the terminal or through an editor/chat agent
+- preview worklogs before writing them
+- inspect aliases, config paths, and local health through MCP
+- fetch worklog stats for today, a date, week, last week, month, or year
+- keep MCP write access opt-in instead of always-on
+
+It also ships the compatibility binary name `cli-tempo`.
 
 ## Installation
 
@@ -76,7 +78,7 @@ logit doctor
 logit config path
 ```
 
-If you plan to use MCP, run `logit setup` first. `logit-mcp` reuses the same config, secrets, profiles, and cache.
+If you plan to use MCP, run `logit setup` first. `logit-mcp` reuses the same config, secrets, profiles, aliases, and cache as the CLI.
 
 ## Required credentials
 
@@ -92,7 +94,153 @@ You need:
 - Tempo token for Tempo API calls
 - Jira email + Jira token for Jira account and issue lookup calls
 
-## Usage
+## MCP
+
+`logit-mcp` exposes `logit` over stdio for editor and agent workflows. It is designed for cases where you want an MCP client to inspect local setup, read worklog data, preview time entries, and optionally create worklogs.
+
+### MCP features
+
+Read-only by default:
+
+- `doctor`: inspect resolved paths, schema version, active profile, and local config state
+- `config_path`: return the resolved `config.toml` path
+- `list_aliases`: list aliases for the selected profile
+- `get_stats`: get worklog stats for today, a date, week, last week, month, or year
+- `preview_log_time`: build a worklog draft without creating a Tempo worklog
+
+Optional write mode:
+
+- `log_time`: create a Tempo worklog using the same core inputs as `preview_log_time`
+- start `logit-mcp` with `--enable-write-tools` to expose `log_time`
+- default installs stay read-only so agents do not gain write access unless you opt in
+
+### MCP quick start
+
+```bash
+logit setup
+
+# install for one client
+logit mcp install claude
+logit mcp install codex
+logit mcp install opencode
+
+# opt in to write access
+logit mcp --enable-write-tools install claude
+```
+
+### Client install commands
+
+Automatic install commands:
+
+```bash
+logit mcp install claude
+logit mcp install codex
+logit mcp install opencode
+
+# opt in to the mutating log_time MCP tool
+logit mcp --enable-write-tools install claude
+```
+
+What these do:
+
+- `claude`: runs `claude mcp add` in local scope for the current project
+- `codex`: updates `~/.codex/config.toml` or `CODEX_HOME/config.toml`
+- `opencode`: updates `~/.config/opencode/opencode.json` or `OPENCODE_CONFIG`
+
+Notes:
+
+- `logit setup` is still required before the installed MCP server can make real API calls
+- installs stay read-only by default; add `--enable-write-tools` only if you want MCP clients to create worklogs
+- rerun the install command later if you want to switch an existing install to write-enabled mode
+- existing Claude local installs that already point at `logit-mcp` are updated in place
+- installs are idempotent when the existing config already matches
+- installs do not overwrite a different existing `logit` MCP entry
+- OpenCode auto-install currently supports strict JSON configs only, not JSONC with comments
+
+### Example MCP workflows
+
+Typical agent requests:
+
+- "Show my aliases for the active profile."
+- "Get my stats for last week."
+- "Preview logging 30 minutes to standup today."
+- "Log 30 minutes to standup with message daily standup." Requires `--enable-write-tools`.
+
+### Manual configuration
+
+Direct server examples:
+
+```bash
+logit-mcp
+logit-mcp --enable-write-tools
+```
+
+Manual OpenCode config:
+
+```json
+{
+  "mcp": {
+    "logit": {
+      "type": "local",
+      "command": ["/absolute/path/to/logit-mcp"]
+    }
+  }
+}
+```
+
+Manual Claude Code config:
+
+```json
+{
+  "projects": {
+    "/absolute/path/to/project": {
+      "mcpServers": {
+        "logit": {
+          "command": "/absolute/path/to/logit-mcp"
+        }
+      }
+    }
+  }
+}
+```
+
+Manual Codex config:
+
+```toml
+[mcp_servers.logit]
+command = "/absolute/path/to/logit-mcp"
+args = ["--config-dir", "/path/to/config", "--data-dir", "/path/to/data", "--cache-dir", "/path/to/cache"]
+```
+
+If you need a specific profile, write access, or custom directories, include them in the client-specific args or command array.
+
+Claude example:
+
+```json
+{
+  "mcpServers": {
+    "logit": {
+      "command": "/absolute/path/to/logit-mcp",
+      "args": ["--profile", "work", "--enable-write-tools"]
+    }
+  }
+}
+```
+
+OpenCode example:
+
+```json
+{
+  "mcp": {
+    "logit": {
+      "type": "local",
+      "command": ["/absolute/path/to/logit-mcp", "--profile", "work", "--enable-write-tools"]
+    }
+  }
+}
+```
+
+## CLI usage
 
 ### Log by duration
 
@@ -239,120 +387,6 @@ You can still select a profile explicitly:
 ```bash
 logit --profile default stat
 LOGIT_PROFILE=default logit stat
-```
-
-## MCP
-
-`logit-mcp` exposes read-only tools plus worklog preview over stdio.
-
-Current tools:
-
-- `doctor`
-- `config_path`
-- `list_aliases`
-- `get_stats`
-- `preview_log_time`
-
-Optional write tool:
-
-- `log_time` when `logit-mcp` is started with `--enable-write-tools`
-
-Build or install the binary first, then register it with your MCP client.
-
-Automatic install commands:
-
-```bash
-logit mcp install claude
-logit mcp install codex
-logit mcp install opencode
-
-# opt in to the mutating log_time MCP tool
-logit mcp --enable-write-tools install claude
-```
-
-What these do:
-
-- `claude`: runs `claude mcp add` in local scope for the current project
-- `codex`: updates `~/.codex/config.toml` or `CODEX_HOME/config.toml`
-- `opencode`: updates `~/.config/opencode/opencode.json` or `OPENCODE_CONFIG`
-
-Notes:
-
-- `logit setup` is still required before the installed MCP server can make real API calls
-- installs stay read-only by default; add `--enable-write-tools` only if you want MCP clients to create worklogs
-- installs are idempotent when the existing config already matches
-- installs do not overwrite a different existing `logit` MCP entry
-- OpenCode auto-install currently supports strict JSON configs only, not JSONC with comments
-
-Manual OpenCode config:
-
-```json
-{
-  "mcp": {
-    "logit": {
-      "type": "local",
-      "command": ["/absolute/path/to/logit-mcp"]
-    }
-  }
-}
-```
-
-Manual Claude Code config:
-
-```json
-{
-  "projects": {
-    "/absolute/path/to/project": {
-      "mcpServers": {
-        "logit": {
-          "command": "/absolute/path/to/logit-mcp"
-        }
-      }
-    }
-  }
-}
-```
-
-Manual Codex config:
-
-```toml
-[mcp_servers.logit]
-command = "/absolute/path/to/logit-mcp"
-args = ["--config-dir", "/path/to/config", "--data-dir", "/path/to/data", "--cache-dir", "/path/to/cache"]
-```
-
-If you need a specific profile, write access, or custom directories, include them in the client-specific args or command array.
-
-Direct server example:
-
-```bash
-logit-mcp --enable-write-tools
-```
-
-Claude example:
-
-```json
-{
-  "mcpServers": {
-    "logit": {
-      "command": "/absolute/path/to/logit-mcp",
-      "args": ["--profile", "work"]
-    }
-  }
-}
-```
-
-OpenCode example:
-
-```json
-{
-  "mcp": {
-    "logit": {
-      "type": "local",
-      "command": ["/absolute/path/to/logit-mcp", "--profile", "work"]
-    }
-  }
-}
 ```
 
 ## Directory overrides
