@@ -1,6 +1,6 @@
 [package]
 name = "logit"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Terminal-first Jira Tempo worklog logger with MCP support"
 license = "MIT"
@@ -32,3 +32,8 @@ insta = { version = "1.43", features = ["json"] }
 mockito = "1.7"
 predicates = "3.1"
 tempfile = "3.13"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

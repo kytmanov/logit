@@ -2,24 +2,42 @@
 
 Terminal-first Jira Tempo worklog logger with MCP support.
 
-`logit` ships two interfaces that share the same local config, profiles, secrets, aliases, and cache:
+`logit` installs three binaries:
 
-- `logit` for direct CLI worklogging and reporting
-- `logit-mcp` for Claude, Codex, OpenCode, and other MCP-compatible editors and agents
+- `logit`: CLI for logging time, stats, aliases, and setup
+- `logit-mcp`: MCP server for Claude, Codex, OpenCode, and compatible clients
+- `cli-tempo`: compatibility name for the main CLI
 
-Use it to:
+All three share the same local config, secrets, profiles, aliases, and cache.
 
-- log time from the terminal or through an editor/chat agent
-- preview worklogs before writing them
-- inspect aliases, config paths, and local health through MCP
-- fetch worklog stats for today, a date, week, last week, month, or year
-- keep MCP write access opt-in instead of always-on
+## What you need
 
-It also ships the compatibility binary name `cli-tempo`.
+Before first setup, have these ready:
 
-## Installation
+- Tempo API token
+- Jira base URL, for example `https://your-company.atlassian.net`
+- Jira account email
+- Jira API token
 
-### Option 1: build from source
+`logit setup` validates those credentials before saving anything.
+
+## Install
+
+### Homebrew
+
+Recommended:
+
+```bash
+brew install kytmanov/tap/logit
+```
+
+Upgrade later with:
+
+```bash
+brew upgrade logit
+```
+
+### Build from source
 
 Requirements:
 
@@ -33,115 +51,141 @@ cd logit
 cargo build --release
 ```
 
-The binary will be at:
+Built binaries:
 
 - `target/release/logit`
-- `target/release/cli-tempo`
 - `target/release/logit-mcp`
+- `target/release/cli-tempo`
 
-Optional install into your cargo bin dir:
+Install all three with Cargo:
 
 ```bash
 cargo install --path .
 ```
 
-### Option 2: copy the release binary manually
+## End-to-end CLI setup
 
-After `cargo build --release`, copy `target/release/logit` to any directory in your `PATH`.
-
-If you want the old command name too:
-
-```bash
-cp target/release/logit ~/.local/bin/logit
-cp target/release/cli-tempo ~/.local/bin/cli-tempo
-cp target/release/logit-mcp ~/.local/bin/logit-mcp
-```
-
-## First run
-
-Run setup:
+### 1. Run setup
 
 ```bash
 logit setup
 ```
 
-Setup stores:
+Setup prompts for:
+
+- Jira URL
+- Jira email
+- Jira API token
+- Tempo API token
+- timezone
+- working hours
+- working days
+- time format
+
+On success, `logit` stores:
 
 - config in the config directory
 - secrets in the data directory
 - cache in the cache directory
 
-Check where those are on your machine:
+Check where those paths are on your machine:
 
 ```bash
 logit doctor
 logit config path
 ```
 
-If you plan to use MCP, run `logit setup` first. `logit-mcp` reuses the same config, secrets, profiles, aliases, and cache as the CLI.
+### 2. Confirm it works
 
-## Required credentials
+Try a safe read-only command first:
 
-You need:
+```bash
+logit stat
+```
 
-- Tempo API token
-- Jira base URL, for example `https://your-company.atlassian.net`
-- Jira account email
-- Jira API token
+If you want to preview a worklog without sending it:
 
-`logit` uses:
+```bash
+logit --dry-run 1h TK-1234
+```
 
-- Tempo token for Tempo API calls
-- Jira email + Jira token for Jira account and issue lookup calls
+### 3. Log time
 
-## MCP
+Issue first:
 
-`logit-mcp` exposes `logit` over stdio for editor and agent workflows. It is designed for cases where you want an MCP client to inspect local setup, read worklog data, preview time entries, and optionally create worklogs.
+```bash
+logit TK-1234 8h
+logit TK-1234 1h 30m
+```
 
-### MCP features
+Duration first:
+
+```bash
+logit 8h TK-1234
+logit 45m TK-1234
+```
+
+With a message:
+
+```bash
+logit 1h TK-1234 -m "fixed flaky test"
+```
+
+For a specific date:
+
+```bash
+logit 30m TK-1234 --date 2026-04-01
+```
+
+For an explicit time range:
+
+```bash
+logit 04/01/2026 0812 - 04/01/2026 1700 TK-1234
+```
+
+## Connect MCP
+
+If you want to use `logit` from Claude, Codex, OpenCode, or another MCP client, do this after `logit setup`.
+
+### What MCP exposes
 
 Read-only by default:
 
-- `doctor`: inspect resolved paths, schema version, active profile, and local config state
-- `config_path`: return the resolved `config.toml` path
-- `list_aliases`: list aliases for the selected profile
-- `get_stats`: get worklog stats for today, a date, week, last week, month, or year
-- `preview_log_time`: build a worklog draft without creating a Tempo worklog
+- `doctor`
+- `config_path`
+- `list_aliases`
+- `get_stats`
+- `preview_log_time`
 
 Optional write mode:
 
-- `log_time`: create a Tempo worklog using the same core inputs as `preview_log_time`
-- start `logit-mcp` with `--enable-write-tools` to expose `log_time`
-- default installs stay read-only so agents do not gain write access unless you opt in
+- `log_time`
 
-### MCP quick start
+Write access is off by default. Enable it only if you want the MCP client to create real Tempo worklogs.
 
-```bash
-logit setup
+### Automatic MCP install
 
-# install for one client
-logit mcp install claude
-logit mcp install codex
-logit mcp install opencode
+`logit` can install client config for:
 
-# opt in to write access
-logit mcp --enable-write-tools install claude
-```
+- Claude
+- Codex
+- OpenCode
 
-### Client install commands
-
-Automatic install commands:
+Commands:
 
 ```bash
 logit mcp install claude
 logit mcp install codex
 logit mcp install opencode
+```
 
-# opt in to the mutating log_time MCP tool
+Write-enabled install:
+
+```bash
 logit mcp --enable-write-tools install claude
 ```
 
-What these do:
+What each one does:
 
 - `claude`: runs `claude mcp add` in local scope for the current project
 - `codex`: updates `~/.codex/config.toml` or `CODEX_HOME/config.toml`
@@ -149,29 +193,48 @@ What these do:
 
 Notes:
 
-- `logit setup` is still required before the installed MCP server can make real API calls
-- installs stay read-only by default; add `--enable-write-tools` only if you want MCP clients to create worklogs
-- rerun the install command later if you want to switch an existing install to write-enabled mode
-- existing Claude local installs that already point at `logit-mcp` are updated in place
-- installs are idempotent when the existing config already matches
+- run `logit setup` first, or the installed MCP server will exist but cannot make real API calls yet
+- rerun the same install command later if you want to switch to write-enabled mode
+- existing matching installs are left alone
 - installs do not overwrite a different existing `logit` MCP entry
-- OpenCode auto-install currently supports strict JSON configs only, not JSONC with comments
+- OpenCode auto-install only supports strict JSON config files, not JSONC with comments
 
-### Example MCP workflows
+### Recommended client flows
 
-Typical agent requests:
+Claude in the current project:
 
-- "Show my aliases for the active profile."
-- "Get my stats for last week."
-- "Preview logging 30 minutes to standup today."
-- "Log 30 minutes to standup with message daily standup." Requires `--enable-write-tools`.
+```bash
+logit setup
+logit mcp install claude
+```
 
-### Manual configuration
+Codex user-level config:
 
-Direct server examples:
+```bash
+logit setup
+logit mcp install codex
+```
+
+OpenCode user-level config:
+
+```bash
+logit setup
+logit mcp install opencode
+```
+
+### Manual MCP configuration
+
+If your client is unsupported, or you want full control, point it at `logit-mcp` directly.
+
+Basic server:
 
 ```bash
 logit-mcp
+```
+
+Write-enabled server:
+
+```bash
 logit-mcp --enable-write-tools
 ```
 
@@ -212,9 +275,9 @@ command = "/absolute/path/to/logit-mcp"
 args = ["--config-dir", "/path/to/config", "--data-dir", "/path/to/data", "--cache-dir", "/path/to/cache"]
 ```
 
-If you need a specific profile, write access, or custom directories, include them in the client-specific args or command array.
+If you need a specific profile or write access, add the relevant args.
 
-Claude example:
+Example:
 
 ```json
 {
@@ -227,69 +290,7 @@ Claude example:
 }
 ```
 
-OpenCode example:
-
-```json
-{
-  "mcp": {
-    "logit": {
-      "type": "local",
-      "command": ["/absolute/path/to/logit-mcp", "--profile", "work", "--enable-write-tools"]
-    }
-  }
-}
-```
-
-## CLI usage
-
-### Log by duration
-
-Issue first:
-
-```bash
-logit TK-1234 8h
-logit TK-1234 1h 30m
-```
-
-Duration first:
-
-```bash
-logit 8h TK-1234
-logit 45m TK-1234
-```
-
-With a message:
-
-```bash
-logit 1h TK-1234 -m "fixed flaky test"
-```
-
-### Log by explicit period
-
-```bash
-logit 04/01/2026 8 12 am - 04/01/2026 5 00 pm TK-1234
-logit 04/01/2026 0812 - 04/01/2026 1700 TK-1234
-```
-
-### Dry run
-
-Preview what would be logged without sending it:
-
-```bash
-logit --dry-run 1h TK-1234
-```
-
-You can also enable dry-run through the environment:
-
-```bash
-LOGIT_DRY_RUN=1 logit 1h TK-1234
-```
-
-### Log for a past date
-
-```bash
-logit 30m TK-1234 --date 2026-04-01
-```
+## Common tasks
 
 ### Stats
 
@@ -305,17 +306,6 @@ logit stat April
 logit stat May 2026
 logit stat 2026
 ```
-
-`logit stat` shows a summary for the selected range.
-
-Use `--details` when you want the individual worklog rows below the summary.
-
-Examples:
-
-- `logit stat` shows today
-- `logit stat 2026-04-01` shows one day
-- `logit stat week` shows a weekly summary
-- `logit stat week --details` shows the weekly summary plus each worklog row
 
 ### Aliases
 
@@ -352,54 +342,46 @@ logit alias standup TK-1234 --no-validate
 
 ### Cache
 
-Clear the active profile cache:
-
 ```bash
 logit cache clear
 ```
 
 ### Config helpers
 
-Show config file location:
-
 ```bash
 logit config path
-```
-
-Show resolved config, data, and cache paths:
-
-```bash
 logit doctor
-```
-
-Edit config in your editor:
-
-```bash
 logit config edit
 ```
 
-### Profiles
+## Profiles
 
-`logit` supports multiple profiles. Most people can stay on the default profile.
+`logit` supports multiple profiles. Most people only need the default profile.
 
-You can still select a profile explicitly:
+Use a named profile:
 
 ```bash
-logit --profile default stat
-LOGIT_PROFILE=default logit stat
+logit --profile work stat
+LOGIT_PROFILE=work logit stat
+```
+
+If you install MCP for a non-default profile, include `--profile` when you run the install command so the client points at the right profile.
+
+Example:
+
+```bash
+logit --profile work mcp install codex
 ```
 
 ## Directory overrides
 
-You can override all three directories.
-
-Flags:
+Override config, data, and cache directories with flags:
 
 ```bash
 logit --config-dir /path/to/config --data-dir /path/to/data --cache-dir /path/to/cache stat
 ```
 
-Environment variables:
+Or with environment variables:
 
 ```bash
 export LOGIT_CONFIG_DIR=/path/to/config
@@ -407,20 +389,30 @@ export LOGIT_DATA_DIR=/path/to/data
 export LOGIT_CACHE_DIR=/path/to/cache
 ```
 
-Important: keep data and cache outside the config directory. `logit` will refuse to run if secrets would end up under the config tree.
+Important: keep data and cache outside the config directory. `logit` refuses to run if secrets would end up under the config tree.
 
 ## Troubleshooting
 
-### Check resolved paths
+### `logit stat` says `run \`logit setup\``
+
+Run:
+
+```bash
+logit setup
+```
+
+### Check paths and active profile
 
 ```bash
 logit doctor
+logit config path
 ```
 
-### Check the current command list
+### Check available commands
 
 ```bash
 logit --help
+logit-mcp --help
 ```
 
 ### Config edited into a bad state
@@ -430,7 +422,7 @@ If `logit config edit` saves invalid TOML or an unsupported schema, the invalid 
 ### Common auth failures
 
 - `Tempo token rejected`: invalid Tempo API token
-- `Jira credentials rejected`: invalid Jira email/token pair
+- `Jira credentials rejected`: invalid Jira email or Jira API token
 - `unknown issue key or alias`: typo in issue key or alias name
 
 ## Development
