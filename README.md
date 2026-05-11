@@ -1,6 +1,10 @@
-# logit
+# logit - Terminal-first Jira Tempo worklog logger with MCP
+<p align=center>
+<img width="727" height="465" alt="t-rec-trimmed-3" src="https://github.com/user-attachments/assets/04cc46f7-bda4-4d39-90b1-198bfd97a44d" />
+</p>
 
-Terminal-first Jira Tempo worklog logger with MCP support.
+
+Terminal-first Jira Tempo worklog logger with MCP support for Claude, Codex, OpenCode, and compatible clients.
 
 `logit` installs three binaries:
 
