@@ -1,8 +1,7 @@
 use crate::domain::{
     AliasCommand, AliasDeleteInput, AliasSetInput, CacheCommand, CommandInput, ConfigCommand,
-    DomainCommand, LogDateSpec, LogInput, LogKind, McpCommand, McpInstallInput,
-    McpInstallTarget, ParsedCli, PathOverrides, ProfileSource, SetupInput, StatRangeInput,
-    StatSelector,
+    DomainCommand, LogDateSpec, LogInput, LogKind, McpCommand, McpInstallInput, McpInstallTarget,
+    ParsedCli, PathOverrides, ProfileSource, SetupInput, StatRangeInput, StatSelector,
 };
 use crate::error::AppError;
 use crate::time_parse::{
@@ -76,7 +75,15 @@ fn parse_log(
             ));
         }
         tokens.pop();
-        return parse_log_tokens(profile, paths, tokens, Some(trailing_date), description, dry_run, force);
+        return parse_log_tokens(
+            profile,
+            paths,
+            tokens,
+            Some(trailing_date),
+            description,
+            dry_run,
+            force,
+        );
     }
 
     parse_log_tokens(profile, paths, tokens, date, description, dry_run, force)
@@ -91,7 +98,6 @@ fn parse_log_tokens(
     dry_run: bool,
     force: bool,
 ) -> Result<DomainCommand, AppError> {
-
     if tokens.iter().any(|token| token == "-") {
         let (start, end, issue_token) = parse_period_tokens(&tokens)?;
         return Ok(DomainCommand::Log(LogInput {
@@ -516,8 +522,8 @@ impl ParseState {
 mod tests {
     use super::*;
     use crate::domain::{
-        DomainCommand, LogDateSpec, McpCommand, McpInstallTarget, ProfileSource,
-        RelativeLogDate, StatSelector,
+        DomainCommand, LogDateSpec, McpCommand, McpInstallTarget, ProfileSource, RelativeLogDate,
+        StatSelector,
     };
 
     #[test]

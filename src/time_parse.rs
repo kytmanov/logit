@@ -418,8 +418,7 @@ mod tests {
             },
         };
         let clock = FixedClock::new(
-            NaiveDateTime::parse_from_str("2026-04-02 01:00:00", "%Y-%m-%d %H:%M:%S")
-                .unwrap(),
+            NaiveDateTime::parse_from_str("2026-04-02 01:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
         );
 
         let draft = build_worklog_draft(&input, &profile, &clock).expect("draft builds");
@@ -450,8 +449,7 @@ mod tests {
             },
         };
         let clock = FixedClock::new(
-            NaiveDateTime::parse_from_str("2026-04-02 01:00:00", "%Y-%m-%d %H:%M:%S")
-                .unwrap(),
+            NaiveDateTime::parse_from_str("2026-04-02 01:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
         );
 
         let draft = build_worklog_draft(&input, &profile, &clock).expect("draft builds");

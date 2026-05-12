@@ -44,8 +44,11 @@ end = "17:00"
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(data_dir.join("secrets.toml"), fs::Permissions::from_mode(0o600))
-            .expect("chmod 600");
+        fs::set_permissions(
+            data_dir.join("secrets.toml"),
+            fs::Permissions::from_mode(0o600),
+        )
+        .expect("chmod 600");
     }
 
     (config_dir, data_dir, cache_dir)

@@ -3,7 +3,9 @@ use std::fs;
 use predicates::prelude::*;
 use tempfile::TempDir;
 
-fn write_config_fixture(temp: &TempDir) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+fn write_config_fixture(
+    temp: &TempDir,
+) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
     let config_dir = temp.path().join("config");
     let data_dir = temp.path().join("data");
     let cache_dir = temp.path().join("cache");

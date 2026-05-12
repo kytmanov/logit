@@ -12,7 +12,7 @@ pub fn select_range(
     selector: &StatSelector,
     profile: &Profile,
 ) -> Result<(String, NaiveDate, NaiveDate), AppError> {
-        let today = today_in_profile(profile);
+    let today = today_in_profile(profile);
     match selector {
         StatSelector::Today => Ok((String::from("today"), today, today)),
         StatSelector::Yesterday => {
