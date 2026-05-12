@@ -1,11 +1,13 @@
 use crate::domain::{
     AliasCommand, AliasDeleteInput, AliasSetInput, CacheCommand, CommandInput, ConfigCommand,
-    DomainCommand, LogInput, LogKind, McpCommand, McpInstallInput, McpInstallTarget, ParsedCli,
-    PathOverrides, ProfileSource, SetupInput, StatRangeInput, StatSelector,
+    DomainCommand, LogDateSpec, LogInput, LogKind, McpCommand, McpInstallInput,
+    McpInstallTarget, ParsedCli, PathOverrides, ProfileSource, SetupInput, StatRangeInput,
+    StatSelector,
 };
 use crate::error::AppError;
 use crate::time_parse::{
-    is_issue_key, parse_date_override, parse_duration_tokens, parse_period_tokens,
+    is_issue_key, parse_date_override, parse_duration_tokens, parse_log_date_spec,
+    parse_period_tokens,
 };
 
 pub fn parse_cli(args: Vec<String>) -> Result<ParsedCli, AppError> {
@@ -63,9 +65,32 @@ fn parse_log(
     let dry_run = extract_flag(&mut tokens, "--dry-run") || truthy_env("LOGIT_DRY_RUN");
     let force = extract_flag(&mut tokens, "--force");
     let date = extract_option_value(&mut tokens, "--date")?
-        .map(|value| parse_date_override(&value))
+        .map(|value| parse_date_override(&value).map(LogDateSpec::Absolute))
         .transpose()?;
     let description = extract_message(&mut tokens)?;
+
+    if let Some(trailing_date) = trailing_log_date(&tokens)? {
+        if date.is_some() {
+            return Err(AppError::validation(
+                "cannot use both --date and a trailing date argument",
+            ));
+        }
+        tokens.pop();
+        return parse_log_tokens(profile, paths, tokens, Some(trailing_date), description, dry_run, force);
+    }
+
+    parse_log_tokens(profile, paths, tokens, date, description, dry_run, force)
+}
+
+fn parse_log_tokens(
+    profile: String,
+    paths: PathOverrides,
+    tokens: Vec<String>,
+    date: Option<LogDateSpec>,
+    description: Option<String>,
+    dry_run: bool,
+    force: bool,
+) -> Result<DomainCommand, AppError> {
 
     if tokens.iter().any(|token| token == "-") {
         let (start, end, issue_token) = parse_period_tokens(&tokens)?;
@@ -148,6 +173,23 @@ fn parse_log(
     }))
 }
 
+fn trailing_log_date(tokens: &[String]) -> Result<Option<LogDateSpec>, AppError> {
+    let Some(last) = tokens.last() else {
+        return Ok(None);
+    };
+    if tokens.len() < 2 {
+        return Ok(None);
+    }
+    if tokens.len() == 2 && parse_duration_tokens(&tokens[..1]).is_ok() {
+        return Ok(None);
+    }
+    match parse_log_date_spec(last) {
+        Ok(date) => Ok(Some(date)),
+        Err(error) if error.to_string().contains("invalid date:") => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
 fn parse_stat(
     profile: String,
     paths: PathOverrides,
@@ -160,6 +202,7 @@ fn parse_stat(
     let selector = match state.next() {
         None => StatSelector::Today,
         Some(value) if value.eq_ignore_ascii_case("today") => StatSelector::Today,
+        Some(value) if value.eq_ignore_ascii_case("yesterday") => StatSelector::Yesterday,
         Some(value) if value.eq_ignore_ascii_case("week") => StatSelector::Week,
         Some(value) if value.eq_ignore_ascii_case("last") => {
             let Some(next) = state.next() else {
@@ -472,7 +515,10 @@ impl ParseState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{DomainCommand, McpCommand, McpInstallTarget, ProfileSource, StatSelector};
+    use crate::domain::{
+        DomainCommand, LogDateSpec, McpCommand, McpInstallTarget, ProfileSource,
+        RelativeLogDate, StatSelector,
+    };
 
     #[test]
     fn parses_setup_with_profile() {
@@ -528,6 +574,19 @@ mod tests {
                     input.selector,
                     StatSelector::Date(parse_date_override("2026-04-01").unwrap())
                 );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_stat_yesterday() {
+        let parsed = parse_cli(vec![String::from("stat"), String::from("yesterday")])
+            .expect("stat yesterday parses");
+
+        match parsed.command {
+            DomainCommand::Stat(input) => {
+                assert_eq!(input.selector, StatSelector::Yesterday);
             }
             other => panic!("unexpected command: {other:?}"),
         }
@@ -642,7 +701,9 @@ mod tests {
                     input.kind,
                     LogKind::Duration {
                         seconds: Some(8 * 3600),
-                        date: Some(parse_date_override("2026-04-01").unwrap()),
+                        date: Some(LogDateSpec::Absolute(
+                            parse_date_override("2026-04-01").unwrap(),
+                        )),
                     }
                 );
             }
@@ -673,6 +734,94 @@ mod tests {
             },
             other => panic!("unexpected command: {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_duration_first_log_with_trailing_absolute_date() {
+        let parsed = parse_cli(vec![
+            String::from("3h"),
+            String::from("TK-1234"),
+            String::from("2026-05-11"),
+        ])
+        .expect("duration-first trailing date parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "TK-1234");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: Some(3 * 3600),
+                        date: Some(LogDateSpec::Absolute(
+                            parse_date_override("2026-05-11").unwrap(),
+                        )),
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_issue_first_log_with_trailing_relative_date() {
+        let parsed = parse_cli(vec![
+            String::from("TK-1234"),
+            String::from("3h"),
+            String::from("yesterday"),
+        ])
+        .expect("issue-first trailing relative date parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "TK-1234");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: Some(3 * 3600),
+                        date: Some(LogDateSpec::Relative(RelativeLogDate::Yesterday)),
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_alias_log_with_trailing_relative_date() {
+        let parsed = parse_cli(vec![String::from("standup"), String::from("yesterday")])
+            .expect("alias trailing relative date parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "standup");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: None,
+                        date: Some(LogDateSpec::Relative(RelativeLogDate::Yesterday)),
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_mixed_flag_and_trailing_dates() {
+        let error = parse_cli(vec![
+            String::from("3h"),
+            String::from("TK-1234"),
+            String::from("yesterday"),
+            String::from("--date"),
+            String::from("2026-05-11"),
+        ])
+        .expect_err("mixed dates rejected");
+
+        assert!(
+            error
+                .to_string()
+                .contains("cannot use both --date and a trailing date argument")
+        );
     }
 
     #[test]

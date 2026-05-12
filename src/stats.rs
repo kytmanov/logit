@@ -12,9 +12,13 @@ pub fn select_range(
     selector: &StatSelector,
     profile: &Profile,
 ) -> Result<(String, NaiveDate, NaiveDate), AppError> {
-    let today = today_in_profile(profile);
+        let today = today_in_profile(profile);
     match selector {
         StatSelector::Today => Ok((String::from("today"), today, today)),
+        StatSelector::Yesterday => {
+            let yesterday = today - Duration::days(1);
+            Ok((String::from("yesterday"), yesterday, yesterday))
+        }
         StatSelector::Date(date) => Ok((date.format("%Y-%m-%d").to_string(), *date, *date)),
         StatSelector::Week => {
             let start = start_of_week(today);
@@ -159,6 +163,17 @@ mod tests {
 
         assert_eq!(label, "week");
         assert_eq!((end - start).num_days(), 6);
+    }
+
+    #[test]
+    fn selects_yesterday_range() {
+        let profile = default_profile("UTC");
+        let (label, start, end) =
+            select_range(&StatSelector::Yesterday, &profile).expect("range selects");
+
+        assert_eq!(label, "yesterday");
+        assert_eq!(start, end);
+        assert_eq!(end, today_in_profile(&profile) - Duration::days(1));
     }
 
     #[test]

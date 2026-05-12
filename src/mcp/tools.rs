@@ -327,6 +327,9 @@ fn parse_stat_selector(when: Option<String>) -> Result<StatSelector, AppError> {
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("today") {
         return Ok(StatSelector::Today);
     }
+    if trimmed.eq_ignore_ascii_case("yesterday") {
+        return Ok(StatSelector::Yesterday);
+    }
     if trimmed.eq_ignore_ascii_case("week") {
         return Ok(StatSelector::Week);
     }
@@ -531,6 +534,14 @@ mod tests {
         assert_eq!(
             parse_stat_selector(Some(String::from("LAST WEEK"))).expect("selector parses"),
             StatSelector::LastWeek
+        );
+    }
+
+    #[test]
+    fn parses_yesterday_case_insensitively() {
+        assert_eq!(
+            parse_stat_selector(Some(String::from("YESTERDAY"))).expect("selector parses"),
+            StatSelector::Yesterday
         );
     }
 

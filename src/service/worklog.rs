@@ -1,6 +1,6 @@
 use crate::alias::resolve_log_target;
 use crate::clock::Clock;
-use crate::domain::{LogInput, LogKind};
+use crate::domain::{LogDateSpec, LogInput, LogKind};
 use crate::jira::JiraClient;
 use crate::secrets::{FileSecretStore, SecretStore};
 use crate::service::types::{
@@ -26,7 +26,7 @@ pub fn preview_log_time<C: Clock>(
         force: request.force,
         kind: LogKind::Duration {
             seconds: request.duration_seconds,
-            date: request.date,
+            date: request.date.map(LogDateSpec::Absolute),
         },
     };
     let log_input = resolve_log_target(&resolved.profile, &input).map_err(ServiceError::from)?;
@@ -63,7 +63,7 @@ pub fn log_time<C: Clock, J: JiraClient, T: TempoClient>(
         force: request.force,
         kind: LogKind::Duration {
             seconds: request.duration_seconds,
-            date: request.date,
+            date: request.date.map(LogDateSpec::Absolute),
         },
     };
     let log_input = resolve_log_target(&resolved.profile, &input).map_err(ServiceError::from)?;

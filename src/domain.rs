@@ -188,10 +188,22 @@ pub struct LogInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RelativeLogDate {
+    Today,
+    Yesterday,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum LogDateSpec {
+    Absolute(NaiveDate),
+    Relative(RelativeLogDate),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LogKind {
     Duration {
         seconds: Option<u32>,
-        date: Option<NaiveDate>,
+        date: Option<LogDateSpec>,
     },
     Period {
         start: NaiveDateTime,
@@ -244,6 +256,7 @@ pub struct StatRangeInput {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum StatSelector {
     Today,
+    Yesterday,
     Date(NaiveDate),
     Month { month: u32, year: i32 },
     Year(i32),

@@ -128,7 +128,9 @@ impl HttpTempoClient {
 
 impl Default for HttpTempoClient {
     fn default() -> Self {
-        Self::new("https://api.tempo.io")
+        let base_url = std::env::var("LOGIT_TEMPO_BASE_URL")
+            .unwrap_or_else(|_| String::from("https://api.tempo.io"));
+        Self::new(base_url)
     }
 }
 

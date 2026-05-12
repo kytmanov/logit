@@ -24,7 +24,7 @@ use std::ffi::OsString;
 use std::process::ExitCode;
 
 use crate::cli::parse_cli;
-use crate::clock::{SystemClock, today_in_profile};
+use crate::clock::{SystemClock, today_in_profile, today_in_profile_at};
 use crate::config::{delete_alias, load_config, save_config};
 use crate::domain::{
     Alias, AliasCommand, CacheCommand, CommandInput, ConfigCommand, DomainCommand, LogInput,
@@ -50,16 +50,18 @@ const HELP_SUFFIX: &str = "\
 Usage: {bin} <COMMAND> [OPTIONS]\n\
 \n\
 Logging time:\n\
-  {bin} <ISSUE> <DURATION>            log duration to issue (e.g. TK-1234 1h 30m)\n\
-  {bin} <DURATION> <ISSUE>            duration first (e.g. 8h TK-1234)\n\
-  {bin} <ALIAS> [DURATION]            log via alias (uses alias default duration)\n\
+  {bin} <ISSUE> <DURATION> [DATE]     log duration to issue (e.g. TK-1234 1h 30m)\n\
+  {bin} <DURATION> <ISSUE> [DATE]     duration first (e.g. 8h TK-1234)\n\
+  {bin} <ALIAS> [DURATION] [DATE]     log via alias (uses alias default duration)\n\
   {bin} <DATE> <START> - <DATE> <END> <ISSUE>\n\
-                                      log a time range\n\
+                                       log a time range\n\
+  DATE: YYYY-MM-DD | MM/DD/YYYY | today | yesterday\n\
+  Dated duration logs end at configured work_hours.end for that day\n\
   Options: --date <YYYY-MM-DD>, -m <message>, --dry-run, --force\n\
 \n\
 Commands:\n\
   setup        configure Tempo and Jira access\n\
-  stat [WHEN]  worklog summary (today|week|last week|<month>|<year>|<YYYY-MM-DD>)\n\
+  stat [WHEN]  worklog summary (today|yesterday|week|last week|<month>|<year>|<YYYY-MM-DD>)\n\
                add --details to include individual worklog rows\n\
   alias        manage aliases (list, set, delete)\n\
   mcp          install MCP client config (claude|codex|opencode)\n\
@@ -177,7 +179,7 @@ where
     let draft = build_worklog_draft(&resolved, profile, clock)?;
 
     let style = Style::for_stdout();
-    let today = today_in_profile(profile);
+    let today = today_in_profile_at(clock, profile);
 
     if resolved.dry_run {
         println!(

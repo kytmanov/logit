@@ -164,7 +164,12 @@ For a specific date:
 
 ```bash
 logit 30m TK-1234 --date 2026-04-01
+logit 3h TK-1234 2026-05-11
+logit 3h TK-1234 yesterday
+logit standup yesterday
 ```
+
+Dated duration logs use the configured `work_hours.end` for that day as the end time, then subtract the duration.
 
 For an explicit time range:
 
@@ -173,6 +178,12 @@ logit 04/01/2026 0812 - 04/01/2026 1700 TK-1234
 ```
 
 ## Connect MCP
+
+Stats selectors also accept `yesterday`, for example:
+
+```bash
+logit stat yesterday
+```
 
 If you want to use `logit` from Claude, Codex, OpenCode, or another MCP client, do this after `logit setup`.
 

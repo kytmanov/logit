@@ -1,7 +1,7 @@
 use chrono::{LocalResult, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 
-use crate::clock::Clock;
-use crate::domain::{LogInput, LogKind, Profile, WorklogDraft};
+use crate::clock::{Clock, current_profile_datetime, today_in_profile_at};
+use crate::domain::{LogDateSpec, LogInput, LogKind, Profile, RelativeLogDate, WorklogDraft};
 use crate::error::AppError;
 
 pub fn is_issue_key(token: &str) -> bool {
@@ -65,7 +65,7 @@ pub fn build_worklog_draft<C: Clock>(
 ) -> Result<WorklogDraft, AppError> {
     match &input.kind {
         LogKind::Duration { seconds, date } => {
-            build_duration_draft(input, profile, clock, *seconds, *date)
+            build_duration_draft(input, profile, clock, *seconds, date.clone())
         }
         LogKind::Period { start, end } => build_period_draft(input, profile, *start, *end),
     }
@@ -106,12 +106,23 @@ pub fn parse_date_override(value: &str) -> Result<NaiveDate, AppError> {
         .map_err(|_| AppError::validation(format!("invalid date: {value}")))
 }
 
+pub fn parse_log_date_spec(value: &str) -> Result<LogDateSpec, AppError> {
+    if value.eq_ignore_ascii_case("today") {
+        return Ok(LogDateSpec::Relative(RelativeLogDate::Today));
+    }
+    if value.eq_ignore_ascii_case("yesterday") {
+        return Ok(LogDateSpec::Relative(RelativeLogDate::Yesterday));
+    }
+
+    parse_date_override(value).map(LogDateSpec::Absolute)
+}
+
 fn build_duration_draft<C: Clock>(
     input: &LogInput,
     profile: &Profile,
     clock: &C,
     seconds: Option<u32>,
-    date: Option<NaiveDate>,
+    date: Option<LogDateSpec>,
 ) -> Result<WorklogDraft, AppError> {
     let duration_seconds = seconds.ok_or_else(|| {
         AppError::validation(format!(
@@ -121,11 +132,16 @@ fn build_duration_draft<C: Clock>(
     })?;
 
     let end = if let Some(date) = date {
+        let date = resolve_log_date(date, profile, clock);
         let end_time = NaiveTime::parse_from_str(&profile.work_hours.end, "%H:%M")
             .map_err(|_| AppError::config("invalid work_hours.end in config"))?;
-        NaiveDateTime::new(date, end_time)
+        let end = NaiveDateTime::new(date, end_time);
+        let start = end - chrono::Duration::seconds(i64::from(duration_seconds));
+        validate_profile_local_datetime(profile, start)?;
+        validate_profile_local_datetime(profile, end)?;
+        end
     } else {
-        clock.now()
+        current_profile_datetime(clock, profile)
     };
     let start = end - chrono::Duration::seconds(i64::from(duration_seconds));
 
@@ -137,6 +153,16 @@ fn build_duration_draft<C: Clock>(
         timezone: profile.tz.clone(),
         description: normalize_description(input.description.as_deref()),
     })
+}
+
+fn resolve_log_date<C: Clock>(date: LogDateSpec, profile: &Profile, clock: &C) -> NaiveDate {
+    match date {
+        LogDateSpec::Absolute(date) => date,
+        LogDateSpec::Relative(RelativeLogDate::Today) => today_in_profile_at(clock, profile),
+        LogDateSpec::Relative(RelativeLogDate::Yesterday) => {
+            today_in_profile_at(clock, profile) - chrono::Duration::days(1)
+        }
+    }
 }
 
 fn build_period_draft(
@@ -284,7 +310,7 @@ mod tests {
     use super::*;
     use crate::clock::FixedClock;
     use crate::config::default_profile;
-    use crate::domain::{LogInput, PathOverrides};
+    use crate::domain::{LogDateSpec, LogInput, PathOverrides, RelativeLogDate};
 
     #[test]
     fn parses_duration_sequences() {
@@ -362,6 +388,187 @@ mod tests {
             draft.end,
             NaiveDateTime::parse_from_str("2026-04-01 17:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
         );
+    }
+
+    #[test]
+    fn parses_relative_log_dates() {
+        assert_eq!(
+            parse_log_date_spec("today").expect("today parses"),
+            LogDateSpec::Relative(RelativeLogDate::Today)
+        );
+        assert_eq!(
+            parse_log_date_spec("yesterday").expect("yesterday parses"),
+            LogDateSpec::Relative(RelativeLogDate::Yesterday)
+        );
+    }
+
+    #[test]
+    fn builds_duration_draft_for_relative_profile_date() {
+        let profile = default_profile("America/Los_Angeles");
+        let input = LogInput {
+            profile: String::from("default"),
+            paths: PathOverrides::default(),
+            issue_token: String::from("TK-1"),
+            description: None,
+            dry_run: false,
+            force: false,
+            kind: LogKind::Duration {
+                seconds: Some(3600),
+                date: Some(LogDateSpec::Relative(RelativeLogDate::Yesterday)),
+            },
+        };
+        let clock = FixedClock::new(
+            NaiveDateTime::parse_from_str("2026-04-02 01:00:00", "%Y-%m-%d %H:%M:%S")
+                .unwrap(),
+        );
+
+        let draft = build_worklog_draft(&input, &profile, &clock).expect("draft builds");
+
+        assert_eq!(
+            draft.start,
+            NaiveDateTime::parse_from_str("2026-03-31 16:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        );
+        assert_eq!(
+            draft.end,
+            NaiveDateTime::parse_from_str("2026-03-31 17:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        );
+    }
+
+    #[test]
+    fn builds_undated_duration_draft_in_profile_timezone() {
+        let profile = default_profile("America/Los_Angeles");
+        let input = LogInput {
+            profile: String::from("default"),
+            paths: PathOverrides::default(),
+            issue_token: String::from("TK-1"),
+            description: None,
+            dry_run: false,
+            force: false,
+            kind: LogKind::Duration {
+                seconds: Some(3600),
+                date: None,
+            },
+        };
+        let clock = FixedClock::new(
+            NaiveDateTime::parse_from_str("2026-04-02 01:00:00", "%Y-%m-%d %H:%M:%S")
+                .unwrap(),
+        );
+
+        let draft = build_worklog_draft(&input, &profile, &clock).expect("draft builds");
+
+        assert_eq!(
+            draft.start,
+            NaiveDateTime::parse_from_str("2026-04-01 17:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        );
+        assert_eq!(
+            draft.end,
+            NaiveDateTime::parse_from_str("2026-04-01 18:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        );
+    }
+
+    #[test]
+    fn rejects_dst_gap_duration_for_explicit_date() {
+        let mut profile = default_profile("America/New_York");
+        profile.work_hours.end = String::from("03:30");
+        let input = LogInput {
+            profile: String::from("default"),
+            paths: PathOverrides::default(),
+            issue_token: String::from("TK-1"),
+            description: None,
+            dry_run: false,
+            force: false,
+            kind: LogKind::Duration {
+                seconds: Some(3600),
+                date: Some(LogDateSpec::Absolute(
+                    NaiveDate::from_ymd_opt(2026, 3, 8).unwrap(),
+                )),
+            },
+        };
+
+        let error = build_worklog_draft(
+            &input,
+            &profile,
+            &FixedClock::new(
+                NaiveDate::from_ymd_opt(2026, 4, 1)
+                    .unwrap()
+                    .and_hms_opt(17, 0, 0)
+                    .unwrap(),
+            ),
+        )
+        .expect_err("dst gap rejected");
+
+        assert!(error.to_string().contains("nonexistent local time"));
+    }
+
+    #[test]
+    fn rejects_dst_ambiguous_period_for_profile_timezone() {
+        let profile = default_profile("America/New_York");
+        let input = LogInput {
+            profile: String::from("default"),
+            paths: PathOverrides::default(),
+            issue_token: String::from("TK-1"),
+            description: None,
+            dry_run: false,
+            force: false,
+            kind: LogKind::Period {
+                start: NaiveDate::from_ymd_opt(2026, 11, 1)
+                    .unwrap()
+                    .and_hms_opt(1, 30, 0)
+                    .unwrap(),
+                end: NaiveDate::from_ymd_opt(2026, 11, 1)
+                    .unwrap()
+                    .and_hms_opt(2, 30, 0)
+                    .unwrap(),
+            },
+        };
+
+        let error = build_worklog_draft(
+            &input,
+            &profile,
+            &FixedClock::new(
+                NaiveDate::from_ymd_opt(2026, 4, 1)
+                    .unwrap()
+                    .and_hms_opt(17, 0, 0)
+                    .unwrap(),
+            ),
+        )
+        .expect_err("dst ambiguity rejected");
+
+        assert!(error.to_string().contains("ambiguous local time"));
+    }
+
+    #[test]
+    fn rejects_dst_ambiguous_duration_for_explicit_date() {
+        let mut profile = default_profile("America/New_York");
+        profile.work_hours.end = String::from("01:30");
+        let input = LogInput {
+            profile: String::from("default"),
+            paths: PathOverrides::default(),
+            issue_token: String::from("TK-1"),
+            description: None,
+            dry_run: false,
+            force: false,
+            kind: LogKind::Duration {
+                seconds: Some(1800),
+                date: Some(LogDateSpec::Absolute(
+                    NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(),
+                )),
+            },
+        };
+
+        let error = build_worklog_draft(
+            &input,
+            &profile,
+            &FixedClock::new(
+                NaiveDate::from_ymd_opt(2026, 4, 1)
+                    .unwrap()
+                    .and_hms_opt(17, 0, 0)
+                    .unwrap(),
+            ),
+        )
+        .expect_err("dst ambiguity rejected");
+
+        assert!(error.to_string().contains("ambiguous local time"));
     }
 
     #[test]

@@ -443,6 +443,9 @@ pub fn render_stats(
         StatSelector::Today => {
             render_stats_day(report, profile, profile_name, today, style, "Today")
         }
+        StatSelector::Yesterday => {
+            render_stats_day(report, profile, profile_name, today, style, "Yesterday")
+        }
         StatSelector::Date(_) => {
             render_stats_day(report, profile, profile_name, today, style, "Day")
         }
