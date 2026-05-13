@@ -51,7 +51,7 @@ Usage: {bin} <COMMAND> [OPTIONS]\n\
 \n\
 Logging time:\n\
   {bin} <ISSUE> <DURATION> [DATE]     log duration to issue (e.g. TK-1234 1h 30m)\n\
-  {bin} <DURATION> <ISSUE> [DATE]     duration first (e.g. 8h TK-1234)\n\
+  {bin} <DURATION> <ISSUE> [DATE]     duration first (e.g. 8h TK-1234, 1h15m standup)\n\
   {bin} <ALIAS> [DURATION] [DATE]     log via alias (uses alias default duration)\n\
   {bin} <DATE> <START> - <DATE> <END> <ISSUE>\n\
                                        log a time range\n\

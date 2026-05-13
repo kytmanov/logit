@@ -115,6 +115,11 @@ fn parse_log_tokens(
         if is_issue_key(&tokens[0]) {
             return Err(AppError::validation("missing duration after issue key"));
         }
+        if parse_duration_tokens(&tokens).is_ok() {
+            return Err(AppError::validation(
+                "missing issue key or alias after duration",
+            ));
+        }
 
         return Ok(DomainCommand::Log(LogInput {
             profile,
@@ -126,6 +131,21 @@ fn parse_log_tokens(
             kind: LogKind::Duration {
                 seconds: None,
                 date,
+            },
+        }));
+    }
+
+    if let Some(parsed) = parse_duration_first_tokens(&tokens, date.clone())? {
+        return Ok(DomainCommand::Log(LogInput {
+            profile,
+            paths,
+            issue_token: parsed.issue_token,
+            description,
+            dry_run,
+            force,
+            kind: LogKind::Duration {
+                seconds: Some(parsed.seconds),
+                date: parsed.date,
             },
         }));
     }
@@ -176,6 +196,35 @@ fn parse_log_tokens(
             seconds: Some(seconds),
             date,
         },
+    }))
+}
+
+struct DurationFirstParse {
+    issue_token: String,
+    seconds: u32,
+    date: Option<LogDateSpec>,
+}
+
+fn parse_duration_first_tokens(
+    tokens: &[String],
+    date: Option<LogDateSpec>,
+) -> Result<Option<DurationFirstParse>, AppError> {
+    let Ok((seconds, consumed)) = parse_duration_tokens(tokens) else {
+        return Ok(None);
+    };
+    if consumed == tokens.len() {
+        return Ok(None);
+    }
+    if consumed + 1 != tokens.len() {
+        return Err(AppError::validation(
+            "unexpected trailing argument after issue key",
+        ));
+    }
+
+    Ok(Some(DurationFirstParse {
+        issue_token: tokens[consumed].clone(),
+        seconds,
+        date,
     }))
 }
 
@@ -401,20 +450,13 @@ fn parse_month(value: &str) -> Result<u32, AppError> {
 }
 
 fn parse_duration_minutes(value: &str) -> Result<u32, AppError> {
-    if let Some(number) = value.strip_suffix('m') {
-        let minutes: u32 = number
-            .parse()
-            .map_err(|_| AppError::validation(format!("invalid duration: {value}")))?;
-        return Ok(minutes * 60);
+    let tokens = [value.to_owned()];
+    let (seconds, consumed) = parse_duration_tokens(&tokens)
+        .map_err(|_| AppError::validation(format!("invalid duration: {value}")))?;
+    if consumed != 1 {
+        return Err(AppError::validation(format!("invalid duration: {value}")));
     }
-    if let Some(number) = value.strip_suffix('h') {
-        let hours: u32 = number
-            .parse()
-            .map_err(|_| AppError::validation(format!("invalid duration: {value}")))?;
-        return Ok(hours * 3600);
-    }
-
-    Err(AppError::validation(format!("invalid duration: {value}")))
+    Ok(seconds)
 }
 
 fn truthy_env(name: &str) -> bool {
@@ -710,6 +752,105 @@ mod tests {
                         date: Some(LogDateSpec::Absolute(
                             parse_date_override("2026-04-01").unwrap(),
                         )),
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_bare_compact_duration_without_issue() {
+        let error = parse_cli(vec![String::from("1h15m")]).expect_err("bare duration rejected");
+
+        assert!(
+            error
+                .to_string()
+                .contains("missing issue key or alias after duration")
+        );
+    }
+
+    #[test]
+    fn parses_duration_first_multi_token_alias_log() {
+        let parsed = parse_cli(vec![
+            String::from("1h"),
+            String::from("15m"),
+            String::from("meetings"),
+        ])
+        .expect("duration-first multi-token alias parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "meetings");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: Some(3600 + 15 * 60),
+                        date: None,
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_duration_first_compact_alias_log() {
+        let parsed = parse_cli(vec![String::from("1h15m"), String::from("meetings")])
+            .expect("duration-first compact alias parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "meetings");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: Some(3600 + 15 * 60),
+                        date: None,
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_duration_first_compact_log_with_trailing_relative_date() {
+        let parsed = parse_cli(vec![
+            String::from("1h15m"),
+            String::from("meetings"),
+            String::from("yesterday"),
+        ])
+        .expect("compact duration with trailing date parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "meetings");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: Some(3600 + 15 * 60),
+                        date: Some(LogDateSpec::Relative(RelativeLogDate::Yesterday)),
+                    }
+                );
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_issue_first_compact_duration_log() {
+        let parsed = parse_cli(vec![String::from("TK-1234"), String::from("1h15m")])
+            .expect("issue-first compact duration parses");
+
+        match parsed.command {
+            DomainCommand::Log(input) => {
+                assert_eq!(input.issue_token, "TK-1234");
+                assert_eq!(
+                    input.kind,
+                    LogKind::Duration {
+                        seconds: Some(3600 + 15 * 60),
+                        date: None,
                     }
                 );
             }

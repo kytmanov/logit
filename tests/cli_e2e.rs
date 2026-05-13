@@ -89,6 +89,29 @@ fn dry_run_accepts_trailing_yesterday_alias_end_to_end() {
 }
 
 #[test]
+fn dry_run_accepts_compact_duration_alias_end_to_end() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let (config_dir, data_dir, cache_dir) = write_config_fixture(&temp);
+
+    let mut cmd = assert_cmd::Command::cargo_bin("logit").expect("binary");
+    cmd.arg("--config-dir")
+        .arg(&config_dir)
+        .arg("--data-dir")
+        .arg(&data_dir)
+        .arg("--cache-dir")
+        .arg(&cache_dir)
+        .arg("1h15m")
+        .arg("standup")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TK-42"))
+        .stdout(predicate::str::contains("1h 15m"))
+        .stdout(predicate::str::contains("Time"))
+        .stdout(predicate::str::contains("daily standup"));
+}
+
+#[test]
 fn log_rejects_mixed_flag_and_trailing_date_end_to_end() {
     let temp = tempfile::tempdir().expect("tempdir");
     let (config_dir, data_dir, cache_dir) = write_config_fixture(&temp);

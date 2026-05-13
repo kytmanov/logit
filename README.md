@@ -152,7 +152,11 @@ Duration first:
 ```bash
 logit 8h TK-1234
 logit 45m TK-1234
+logit 1h 15m standup
+logit 1h15m standup
 ```
+
+Compact mixed-unit durations like `1h15m` work in both issue-first and duration-first forms.
 
 With a message:
 

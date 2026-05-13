@@ -165,6 +165,7 @@ impl TempoClient for HttpTempoClient {
     ) -> WorklogBoundaryDraft {
         WorklogBoundaryDraft {
             issue_id,
+            issue_key: draft.issue_key.clone(),
             author_account_id,
             start_date: draft.start.date(),
             start_time: draft.start.time(),
@@ -200,7 +201,7 @@ impl TempoClient for HttpTempoClient {
                 let end = start + chrono::Duration::seconds(i64::from(draft.time_spent_seconds));
                 Ok(WorklogResult {
                     worklog_id: worklog_id.clone(),
-                    issue_key: draft.issue_id.clone(),
+                    issue_key: draft.issue_key.clone(),
                     issue_id: Some(draft.issue_id.clone()),
                     start,
                     end,
@@ -392,6 +393,7 @@ mod tests {
                 &profile,
                 &WorklogBoundaryDraft {
                     issue_id: String::from("10001"),
+                    issue_key: String::from("TK-1"),
                     author_account_id: String::from("acct-1"),
                     start_date: NaiveDate::from_ymd_opt(2026, 4, 1).unwrap(),
                     start_time: NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
@@ -402,6 +404,7 @@ mod tests {
             .expect("tempo create succeeds");
 
         assert_eq!(result.worklog_id, "9001");
+        assert_eq!(result.issue_key, "TK-1");
         assert_eq!(result.duration_seconds, 3600);
     }
 

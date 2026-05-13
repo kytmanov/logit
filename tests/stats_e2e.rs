@@ -1,5 +1,6 @@
 use std::fs;
 
+use chrono::{Duration, Utc};
 use predicates::prelude::*;
 
 fn write_profile_fixture(
@@ -56,20 +57,26 @@ end = "17:00"
 
 #[test]
 fn stat_yesterday_runs_end_to_end_against_mock_servers() {
+    let today = Utc::now().date_naive();
+    let yesterday = today - Duration::days(1);
+    let expected_date = yesterday.format("%Y-%m-%d").to_string();
+    let expected_label = logit::format::format_date_short(yesterday, today);
+
     let mut tempo = mockito::Server::new();
     let mut jira = mockito::Server::new();
     let _tempo_mock = tempo
         .mock("GET", "/4/worklogs/user/acct-1")
         .match_query(mockito::Matcher::AllOf(vec![
-            mockito::Matcher::UrlEncoded("from".into(), "2026-05-11".into()),
-            mockito::Matcher::UrlEncoded("to".into(), "2026-05-11".into()),
+            mockito::Matcher::UrlEncoded("from".into(), expected_date.clone()),
+            mockito::Matcher::UrlEncoded("to".into(), expected_date.clone()),
             mockito::Matcher::UrlEncoded("offset".into(), "0".into()),
             mockito::Matcher::UrlEncoded("limit".into(), "1000".into()),
         ]))
         .with_status(200)
-        .with_body(
-            r#"{"results":[{"tempoWorklogId":9001,"issue":{"self":"https://example.atlassian.net/rest/api/3/issue/1641146","id":1641146},"startDate":"2026-05-11","startTime":"09:00:00","timeSpentSeconds":3600,"description":"work"}]}"#,
-        )
+        .with_body(format!(
+            r#"{{"results":[{{"tempoWorklogId":9001,"issue":{{"self":"https://example.atlassian.net/rest/api/3/issue/1641146","id":1641146}},"startDate":"{}","startTime":"09:00:00","timeSpentSeconds":3600,"description":"work"}}]}}"#,
+            expected_date
+        ))
         .create();
     let _jira_mock = jira
         .mock("GET", "/rest/api/3/issue/1641146")
@@ -96,7 +103,7 @@ fn stat_yesterday_runs_end_to_end_against_mock_servers() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Yesterday"))
-        .stdout(predicate::str::contains("Mon May 11"))
+        .stdout(predicate::str::contains(expected_label))
         .stdout(predicate::str::contains("TK-1641146"))
         .stdout(predicate::str::contains("1h"));
 }

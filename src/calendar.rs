@@ -316,7 +316,7 @@ impl HttpCalendarClient {
                     .into_iter()
                     .map(|day| ScheduleDay {
                         date: day.date,
-                        required_seconds: day.required_seconds as u32,
+                        required_seconds: day.required_seconds.max(0) as u32,
                         holiday_name: day.holiday.map(|holiday| holiday.name),
                     })
                     .collect())

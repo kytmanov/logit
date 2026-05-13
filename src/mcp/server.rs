@@ -284,6 +284,7 @@ mod tests {
         ) -> WorklogBoundaryDraft {
             WorklogBoundaryDraft {
                 issue_id,
+                issue_key: draft.issue_key.clone(),
                 author_account_id,
                 start_date: draft.start.date(),
                 start_time: draft.start.time(),
@@ -302,7 +303,7 @@ mod tests {
             let end = start + chrono::Duration::seconds(i64::from(draft.time_spent_seconds));
             Ok(WorklogResult {
                 worklog_id: String::from("worklog-1"),
-                issue_key: draft.issue_id.clone(),
+                issue_key: draft.issue_key.clone(),
                 issue_id: Some(draft.issue_id.clone()),
                 start,
                 end,

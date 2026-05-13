@@ -132,10 +132,9 @@ pub fn log_time<C: Clock, J: JiraClient, T: TempoClient>(
     }
 
     let boundary = tempo.to_boundary_draft(issue_id, account_id, &draft);
-    let mut result = tempo
+    let result = tempo
         .create_worklog(&secrets.tempo_token, &resolved.profile, &boundary)
         .map_err(ServiceError::from)?;
-    result.issue_key = draft.issue_key.clone();
 
     Ok(ServiceOutput {
         meta: ServiceMeta {

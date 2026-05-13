@@ -224,6 +224,7 @@ pub struct WorklogDraft {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorklogBoundaryDraft {
     pub issue_id: String,
+    pub issue_key: String,
     pub author_account_id: String,
     pub start_date: NaiveDate,
     pub start_time: NaiveTime,

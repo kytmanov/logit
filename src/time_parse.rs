@@ -27,27 +27,11 @@ pub fn parse_duration_tokens(tokens: &[String]) -> Result<(u32, usize), AppError
     let mut seconds = 0_u32;
 
     for token in tokens {
-        let Some(unit) = token.chars().last() else {
+        let Some(token_seconds) = parse_duration_token(token)? else {
             break;
         };
-        let value = &token[..token.len().saturating_sub(1)];
-        if value.is_empty() || !value.chars().all(|ch| ch.is_ascii_digit()) {
-            break;
-        }
 
-        let amount: u32 = value
-            .parse()
-            .map_err(|_| AppError::validation(format!("invalid duration: {token}")))?;
-        if amount == 0 {
-            return Err(AppError::validation("duration must be greater than zero"));
-        }
-
-        match unit {
-            'h' => seconds = seconds.saturating_add(amount.saturating_mul(3600)),
-            'm' => seconds = seconds.saturating_add(amount.saturating_mul(60)),
-            _ => break,
-        }
-
+        seconds = seconds.saturating_add(token_seconds);
         consumed += 1;
     }
 
@@ -56,6 +40,48 @@ pub fn parse_duration_tokens(tokens: &[String]) -> Result<(u32, usize), AppError
     }
 
     Ok((seconds, consumed))
+}
+
+fn parse_duration_token(token: &str) -> Result<Option<u32>, AppError> {
+    if token.is_empty() {
+        return Ok(None);
+    }
+
+    let bytes = token.as_bytes();
+    let mut index = 0;
+    let mut seconds = 0_u32;
+    let mut saw_segment = false;
+
+    while index < bytes.len() {
+        let start = index;
+        while index < bytes.len() && bytes[index].is_ascii_digit() {
+            index += 1;
+        }
+        if start == index {
+            return Ok(None);
+        }
+        if index >= bytes.len() {
+            return Ok(None);
+        }
+
+        let amount: u32 = token[start..index]
+            .parse()
+            .map_err(|_| AppError::validation(format!("invalid duration: {token}")))?;
+        if amount == 0 {
+            return Err(AppError::validation("duration must be greater than zero"));
+        }
+
+        match bytes[index] as char {
+            'h' => seconds = seconds.saturating_add(amount.saturating_mul(3600)),
+            'm' => seconds = seconds.saturating_add(amount.saturating_mul(60)),
+            _ => return Ok(None),
+        }
+
+        saw_segment = true;
+        index += 1;
+    }
+
+    Ok(saw_segment.then_some(seconds))
 }
 
 pub fn build_worklog_draft<C: Clock>(
@@ -323,6 +349,15 @@ mod tests {
 
         assert_eq!(seconds, 8 * 3600 + 15 * 60);
         assert_eq!(consumed, 2);
+    }
+
+    #[test]
+    fn parses_compact_duration_tokens() {
+        let tokens = vec![String::from("1h15m"), String::from("meetings")];
+        let (seconds, consumed) = parse_duration_tokens(&tokens).expect("duration parses");
+
+        assert_eq!(seconds, 3600 + 15 * 60);
+        assert_eq!(consumed, 1);
     }
 
     #[test]

@@ -31,6 +31,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
     drop(file);
 
     fs::rename(&tmp_path, &resolved).map_err(|error| {
+        let _ = fs::remove_file(&tmp_path);
         AppError::config(format!(
             "rename {} -> {}: {error}",
             tmp_path.display(),
